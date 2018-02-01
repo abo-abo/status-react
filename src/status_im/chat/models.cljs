@@ -20,7 +20,7 @@
             :color      styles/default-chat-color
             :group-chat false
             :is-active  true
-            :timestamp  now 
+            :timestamp  now
             :contacts   [{:identity chat-id}]}
            chat-props)))
 
@@ -31,8 +31,9 @@
    (let [new-chat       (create-new-chat cofx chat-id chat-props)
          existing-chats (:chats db)]
      {:db        (cond-> db
-                         (not (contains? existing-chats chat-id))
-                         (update :chats assoc chat-id new-chat))
+                   (not (contains? existing-chats chat-id))
+                   (-> (update :chats assoc chat-id new-chat)
+                       (update :deleted-chats (fnil disj #{}) chat-id)))
       :save-chat new-chat})))
 
 ;; TODO (yenda): there should be an option to update the timestamp
@@ -41,12 +42,13 @@
 (defn update-chat
   "Updates chat properties, if chat is not present in app-db, creates a default new one"
   [{:keys [db] :as cofx} {:keys [chat-id] :as chat}]
-  (let [chat (merge (or (-> db (get-in [:chats chat-id]) (dissoc :contacts))
-                        (create-new-chat cofx chat-id {}))
-                    chat)]
-    {:db        (cond-> db
-                  (:is-active chat) (update-in [:chats chat-id] merge chat))
-     :save-chat chat}))
+  (let [{:keys [chats deleted-chats]} db]
+    (let [chat (merge (or (-> db (get chat-id) (dissoc :contacts))
+                          (create-new-chat cofx chat-id {}))
+                      chat)]
+      {:db        (cond-> db
+                    (not (get deleted-chats chat-id)) (update-in [:chats chat-id] merge chat))
+       :save-chat chat})))
 
 ;; TODO (yenda): an upsert is suppose to add the entry if it doesn't
 ;; exist and update it if it does
