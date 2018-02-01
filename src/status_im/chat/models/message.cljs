@@ -98,11 +98,8 @@
 ;;;; Send message
 
 (def send-interceptors
-  [(re-frame/inject-cofx :random-id)
-   (re-frame/inject-cofx :random-id-seq)
-   (re-frame/inject-cofx :get-stored-chat)
-   (re-frame/inject-cofx :now)
-   re-frame/trim-v])
+  [(re-frame/inject-cofx :random-id) (re-frame/inject-cofx :random-id-seq)
+   (re-frame/inject-cofx :now) re-frame/trim-v])
 
 (defn- handle-message-from-bot [cofx {:keys [message chat-id]}]
   (when-let [message (cond
@@ -217,7 +214,7 @@
 
 
 (defn send-message [{{:keys [network-status] :as db} :db
-                     :keys                           [now get-stored-chat]}
+                     :keys                           [now]}
                     {:keys [chat-id] :as params}]
   (let [chat    (get-in db [:chats chat-id])
         message (prepare-message params chat)
@@ -225,7 +222,7 @@
         fx      {:db                      (add-message-to-db db chat-id message true)
                  :update-message-overhead [chat-id network-status]
                  :save-message             message}]
-    (-> (merge fx (chat-model/upsert-chat (assoc fx :get-stored-chat get-stored-chat :now now)
+    (-> (merge fx (chat-model/upsert-chat (assoc fx :now now)
                                           {:chat-id chat-id}))
         (as-> fx'
             (merge fx' (send fx' params'))))))
@@ -272,7 +269,7 @@
 
 (defn send-command
   [{{:keys [current-public-key network-status chats] :as db} :db
-    :keys [now get-stored-chat random-id-seq]} result add-to-chat-id params]
+    :keys [now random-id-seq]} result add-to-chat-id params]
   (let [{{:keys [handler-data
                  command]
           :as   content} :command
@@ -295,7 +292,7 @@
                                                        (dissoc :to-message :has-handler :raw-input))}]
 
     (cond-> (merge fx
-                   (chat-model/upsert-chat (assoc fx :get-stored-chat get-stored-chat :now now)
+                   (chat-model/upsert-chat (assoc fx :now now)
                                            {:chat-id chat-id})
                    (dissoc result :db))
 
